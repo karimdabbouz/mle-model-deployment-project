@@ -2,6 +2,9 @@ import os, mlflow
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split 
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_squared_error
 from mlflow.tracking.client import MlflowClient
 
 
@@ -27,15 +30,17 @@ class Preprocessing():
         return X_train, X_test, y_train, y_test
 
 
-class RandomForestRegressor():
-    def __init__(self):
-        # CONNECT MLFLOW
-        pass
-
+class RandomForest():
+    def __init__(self, mlflow_tracking_uri, experiment_name):
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
+        mlflow.set_experiment(experiment_name)
+        
     def fit(self, X_train, X_test, y_train, y_test):
+        features = ['PULocationID', 'DOLocationID', 'trip_distance']
+        target = 'duration'
         with mlflow.start_run():
             tags = {
-                'model': 'random forest regression - GridSearchCV',
+                'model': 'random forest regression',
                 'developer': 'karim',
                 'dataset': 'yellow-taxi',
                 'year': 2021,
@@ -63,12 +68,20 @@ class RandomForestRegressor():
 
 
 class RegisterModelMLFlow():
-    def __init__(self, run_id, mlflow_tracking_uri, model_name, model):
-        self.run_id = run_id
-        self.mlflow_tracking_uri = mlflow_tracking_uri
+    def __init__(self, run_id, mlflow_tracking_uri, model_name, model_version, stage):
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
+        mlflow.register_model(model_uri=f'runs:/{run_id}/model', name=model_name)
+        self.client = MlflowClient(tracking_uri=mlflow_tracking_uri)
         self.model_name = model_name
-        self.model = model
+        self.model_version = model_version
+        self.stage = stage
 
-        
+    def register(self):
+        self.client.transition_model_version_stage(
+            name=self.model_name,
+            version=self.model_version,
+            stage=self.stage,
+            archive_existing_versions=False
+        )
 
     
